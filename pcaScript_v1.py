@@ -42,23 +42,23 @@ cm = X_normalized.corr()
 pca = PCA(n_components = len(X.columns))
 pcMatrix = pca.fit_transform(X_normalized)
 
-#Call class attributes
-eigenvalues = pca.explained_variance_
-eigenvectors = pca.components_
-explaiedVariance = pca.explained_variance_ratio_
+#Call class attributes and put them in Data Frames
+eigenvalues = pd.DataFrame(data=pca.explained_variance_, columns = ['Eigenvalues']).set_index([['PC_{}'.format(i) for i in range(1,len(X_normalized.columns)+1)]])
+eigenvectors = pd.DataFrame(data =pca.components_, columns = ['PC_{}'.format(i) for i in range(1,len(eigenvalues)+1)]).set_index(X_normalized.columns)
+explainedVariance = pd.DataFrame(data=pca.explained_variance_ratio_*100, columns = ['Explained Variance (%)']).set_index([['PC_{}'.format(i) for i in range(1,len(eigenvalues)+1)]])
+cumulativeExplainedVariance = pd.DataFrame(data= np.cumsum(pca.explained_variance_ratio_) * 100, columns = ['Cumulative Explained Variance (%)']).set_index([['PC_{}'.format(i) for i in range(1,len(eigenvalues)+1)]])
 
 #Create summary table
-eValsTable = pd.DataFrame(data = [eigenvalues, explaiedVariance * 100, np.cumsum(explaiedVariance) * 100], columns = ['PC {}'.format(i) for i in range(1,len(eigenvalues)+1)]).T
-eValsTable.columns = ['Eigenvalues', 'Explained variance (%)','Cumulative explained variance (%)']
+eValsTable = eigenvalues.merge(explainedVariance, left_index=True, right_index=True).merge(cumulativeExplainedVariance, left_index=True, right_index=True)
 
 #Plot Eigenvalues
 eValsTable['Eigenvalues'].plot.bar(title='Eigenvalues of the correlation matrix').axhline(y=1, color='r', linestyle='--', lw=.5)
 
 #Plot Scree-Plot
-eValsTable[['Explained variance (%)','Cumulative explained variance (%)']].plot(title='Scree-plot of PC explained variance')
+eValsTable[['Explained Variance (%)','Cumulative Explained Variance (%)']].plot(title='Scree-plot of PC explained variance')
 
 #Loadings Matrix - Squared correlation of Original Variables and PCs (e.g. variable explained per PC)
-loadingMatrix = pd.DataFrame((eigenvectors.T * np.sqrt(eigenvalues))**2, columns = ['PC {}'.format(i) for i in range(1,len(eigenvalues)+1)])
+loadingMatrix = pd.DataFrame((eigenvectors.T * np.sqrt(eigenvalues))**2, columns = ['PC_{}'.format(i) for i in range(1,len(eigenvalues)+1)])
 loadingMatrix.set_index(X_normalized.columns)
 
 #Cumulative Loadings Matrix - Squared correlation of Original Variables and PCs (e.g. variable explained per PC)
@@ -69,7 +69,7 @@ cumulativeLoadingMatrix = np.cumsum(loadingMatrix, axis=1)
 '''PCs Selection'''
 
 #Select Principal Components
-goldenRulePCs = len([i for i in eigenvalues if i>1])
+goldenRulePCs = len([i for i in eigenvalues['Eigenvalues'] if i>1])
 print(goldenRulePCs)
 
 #
@@ -80,21 +80,23 @@ else:
 
 #%%
 '''PCs Extraction'''
+#Number of PCs is dictated by Golden Rule, +1 if number is odd
 pcaExtracted = PCA(n_components = pcsToExtract)
+
 pcMatrixExtracted = pcaExtracted.fit_transform(X_normalized)
 pcMatrixExtracted = pd.DataFrame(pcMatrixExtracted)
-pcMatrixExtracted.columns = ['PC {}'.format(i) for i in range(1,len(pcMatrixExtracted.columns)+1)]
+pcMatrixExtracted.columns = ['PC_{}'.format(i) for i in range(1,len(pcMatrixExtracted.columns)+1)]
 
 #%%
 '''Plot results'''
 pcMatrixExtracted = pd.DataFrame(df['targetNames']).join(pcMatrixExtracted)
 
 # Use the 'hue' argument to provide a factor variable
-sns.lmplot( x="PC 1", y="PC 2", data=pcMatrixExtracted, fit_reg=False, hue='targetNames', legend=True)
+sns.lmplot( x="PC_1", y="PC_2", data=pcMatrixExtracted, fit_reg=False, hue='targetNames', legend=True)
 
 #%%
 '''Post-Estimation Diagnostics: Squared Cosines Analysis'''
 
 cosines = pd.DataFrame()
-cosines['squaredCosine1'] = (pcMatrixExtracted['PC 1']**2) / (X_normalized**2).sum(axis=1)
-cosines['squaredCosine2'] = (pcMatrixExtracted['PC 2']**2) / (X_normalized**2).sum(axis=1)
+cosines['squaredCosine1'] = (pcMatrixExtracted['PC_1']**2) / (X_normalized**2).sum(axis=1)
+cosines['squaredCosine2'] = (pcMatrixExtracted['PC_2']**2) / (X_normalized**2).sum(axis=1)
